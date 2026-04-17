@@ -92,10 +92,11 @@ export interface MotifChordContext {
 // Defaults
 // ---------------------------------------------------------------------------
 
+/** Default rhythm: 8 eighth notes filling one bar at 1/8 clockDivide. */
 function makeDefaultRhythm(): MotifRhythmBeat[] {
   const r: MotifRhythmBeat[] = [];
-  for (let i = 0; i < 4; i++) r.push({ type: 'note', velocity: 100 });
-  for (let i = 4; i < 32; i++) r.push({ type: 'rest', velocity: 0 });
+  for (let i = 0; i < 8; i++) r.push({ type: 'note', velocity: 100 });
+  for (let i = 8; i < 32; i++) r.push({ type: 'rest', velocity: 0 });
   return r;
 }
 
@@ -105,16 +106,21 @@ function makeDefaultPattern(): number[] {
 
 export const DEFAULT_MOTIF_STATE: MotifState = {
   // `position` is an INDEX into the generated note pool, not a MIDI note.
-  // Starting at 0 keeps the motif in a playable range for every patternType
-  // (chord pools have ~30 entries; 60 would be out of range and produce
-  // silence).
-  position: 0,
+  // For the default `chord` patternType, a C-major chord pool ascends
+  //   [C-1, E-1, G-1, C0, E0, G0, C1, E1, G1, C2, E2, G2, C3, ...]
+  // so position 12 lines up around C3, putting an 8-note ascending
+  // arpeggio in the C3..E5 range — well inside any synth's playable
+  // register. Position 0 was index zero into the pool, which produced
+  // sub-audible MIDI 0–7 notes and made the motifs sound silent.
+  position: 12,
   patternLength: 8,
   variation: 'forward',
   pattern: makeDefaultPattern(),
   patternType: 'chord',
   clockDivide: '1/8',
-  rhythmLength: 4,
+  // 8-eighth-note rhythm at 1/8 = exactly one bar, which lines up with
+  // the 8-step pattern so they cycle in phase by default.
+  rhythmLength: 8,
   rhythm: makeDefaultRhythm(),
   accent: 'rhythm',
   velocity: 100,

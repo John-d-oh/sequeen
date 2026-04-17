@@ -223,7 +223,27 @@ export const useStore = create<SequeenStore>()(
   pad: { ...DEFAULT_PAD_STATE, isPlaying: false },
   drone: { ...DEFAULT_DRONE_STATE, isPlaying: false },
   motif1: { ...DEFAULT_MOTIF_STATE, isPlaying: false, midiChannel: 3 },
-  motif2: { ...DEFAULT_MOTIF_STATE, isPlaying: false, midiChannel: 4 },
+  // Motif 2 defaults to a bassline-flavoured voice that complements motif 1:
+  //   - lower position (~C1..C2 register) so it doesn't crowd motif 1 (~C3..E5)
+  //   - octave-jump pattern → nice melodic + bassy interplay
+  //   - 1/4 clock divide → half the speed of motif 1's 1/8, less busy
+  //   - 4-step rhythm at quarter notes → 1 bar cycle at 1/4
+  motif2: {
+    ...DEFAULT_MOTIF_STATE,
+    isPlaying: false,
+    midiChannel: 4,
+    position: 5,
+    pattern: [1, 5, 2, 6, 3, 7, 4, 8, 1, 2, 3, 4, 5, 6, 7, 8],
+    clockDivide: '1/4',
+    rhythmLength: 4,
+    rhythm: [
+      { type: 'note', velocity: 110 },
+      { type: 'note', velocity: 90 },
+      { type: 'note', velocity: 100 },
+      { type: 'note', velocity: 90 },
+      ...Array.from({ length: 28 }, () => ({ type: 'rest' as const, velocity: 0 })),
+    ],
+  },
 
   setPadParam: (param, value) => set((s) => ({ pad: { ...s.pad, [param]: value } })),
   setDroneParam: (param, value) => set((s) => ({ drone: { ...s.drone, [param]: value } })),
