@@ -1,7 +1,11 @@
 import { Knob } from './Knob';
 import { MidiOutputSelector } from './MidiOutputSelector';
-import { MiniKeyboard } from './MiniKeyboard';
 import { MotifStepIndicator } from './MotifStepIndicator';
+import { VariationButton } from './VariationButton';
+import { PatternPresetButton, patternMatchesPreset } from './PatternPresetButton';
+import { RhythmPresetButton, rhythmMatchesPreset } from './RhythmPresetButton';
+import { LengthIndicator } from './LengthIndicator';
+import { MotifPatternPreview } from './MotifPatternPreview';
 import { useStore } from '../store';
 import { motif1Engine, motif2Engine } from '../engine/appEngines';
 import type { OutputInfo } from '../engine/midiOutput';
@@ -47,12 +51,13 @@ export function MotifPanelBody({ partId, accent, ports, onEditPattern, onEditRhy
   ) as <K extends keyof MotifState>(p: K, v: MotifState[K]) => void;
   const midi = useStore((s) => s.midiConfigs[partId]);
   const setMidi = useStore((s) => s.setMidiConfig);
+  const music = useStore((s) => s.music);
   const currentNote = useRafPolled(() => engine.getCurrentNote());
   const currentStep = useRafPolled(() => engine.getCurrentStep());
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-3 flex-wrap items-end">
         <Knob
           label="Position"
           value={motif.position}
@@ -62,22 +67,33 @@ export function MotifPanelBody({ partId, accent, ports, onEditPattern, onEditRhy
           accent={accent}
           format={(v) => `idx ${v}`}
         />
-        <Knob
-          label="Pat Len"
-          value={motif.patternLength}
-          onChange={(v) => setParam('patternLength', v)}
-          min={1}
-          max={16}
-          accent={accent}
-        />
-        <Knob
-          label="Rhy Len"
-          value={motif.rhythmLength}
-          onChange={(v) => setParam('rhythmLength', v)}
-          min={4}
-          max={32}
-          accent={accent}
-        />
+        <div className="flex flex-col items-center gap-1">
+          <Knob
+            label="Pat Len"
+            value={motif.patternLength}
+            onChange={(v) => setParam('patternLength', v)}
+            min={1}
+            max={16}
+            accent={accent}
+          />
+          <LengthIndicator active={motif.patternLength} total={16} accent={accent} />
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <Knob
+            label="Rhy Len"
+            value={motif.rhythmLength}
+            onChange={(v) => setParam('rhythmLength', v)}
+            min={4}
+            max={32}
+            accent={accent}
+          />
+          <LengthIndicator
+            active={motif.rhythmLength}
+            total={32}
+            accent={accent}
+            dotSize={3}
+          />
+        </div>
         <Knob
           label="Velocity"
           value={motif.velocity}
@@ -88,20 +104,38 @@ export function MotifPanelBody({ partId, accent, ports, onEditPattern, onEditRhy
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <SelectRow label="Variation">
-          <select
-            value={motif.variation}
-            onChange={(e) => setParam('variation', e.target.value as MotifVariation)}
-            className={selectCls}
-          >
-            {VARIATIONS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </SelectRow>
+      {/* Live preview keyboard — makes Position / patternLength / patternType
+          concrete by showing the actual MIDI notes the motif will play. */}
+      <div className="p-2 bg-bg-900 rounded border border-slate-700/50">
+        <MotifPatternPreview
+          partId={partId}
+          pattern={motif.pattern}
+          patternLength={motif.patternLength}
+          position={motif.position}
+          patternType={motif.patternType}
+          music={music}
+          accent={accent}
+        />
+      </div>
+
+      {/* Variation: 6 iconographic buttons, each showing the motion curve */}
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Variation</div>
+        <div className="grid grid-cols-3 gap-1">
+          {VARIATIONS.map((v) => (
+            <VariationButton
+              key={v}
+              variation={v}
+              isActive={motif.variation === v}
+              accent={accent}
+              onClick={() => setParam('variation', v)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Pattern-type / clock-divide / accent kept as compact selects */}
+      <div className="grid grid-cols-3 gap-2">
         <SelectRow label="Pat Type">
           <select
             value={motif.patternType}
@@ -141,52 +175,69 @@ export function MotifPanelBody({ partId, accent, ports, onEditPattern, onEditRhy
             ))}
           </select>
         </SelectRow>
+      </div>
 
-        <SelectRow label="Pattern">
-          <select
-            onChange={(e) => {
-              const p = PRESET_PATTERNS[Number(e.target.value)];
-              if (p) {
+      {/* Pattern presets as visual bar-chart buttons */}
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Pattern</div>
+        <div className="flex gap-1 overflow-x-auto pb-1">
+          {PRESET_PATTERNS.map((p) => (
+            <PatternPresetButton
+              key={p.name}
+              preset={p}
+              isActive={patternMatchesPreset(motif.pattern, motif.patternLength, p)}
+              accent={accent}
+              onClick={() => {
                 setParam('pattern', p.pattern);
                 setParam('patternLength', p.length);
-              }
-            }}
-            className={selectCls}
-            defaultValue=""
-          >
-            <option value="" disabled>
-              Load preset…
-            </option>
-            {PRESET_PATTERNS.map((p, i) => (
-              <option key={p.name} value={i}>
-                {i + 1}. {p.name}
-              </option>
-            ))}
-          </select>
-        </SelectRow>
-        <SelectRow label="Rhythm">
-          <select
-            onChange={(e) => {
-              const r = PRESET_RHYTHMS[Number(e.target.value)];
-              if (r) {
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Rhythm presets split into Melodic + Bass rows so the bass-oriented
+          rhythms (Bass — Whole Notes, On 1, Reggae Offbeat, etc.) are easy
+          to find without hunting through a single 15-item dropdown. */}
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">
+          Rhythm — Melodic
+        </div>
+        <div className="flex gap-1 overflow-x-auto pb-1">
+          {PRESET_RHYTHMS.filter((r) => !r.name.startsWith('Bass')).map((r) => (
+            <RhythmPresetButton
+              key={r.name}
+              preset={r}
+              isActive={rhythmMatchesPreset(motif.rhythm, motif.rhythmLength, r)}
+              accent={accent}
+              onClick={() => {
                 setParam('rhythm', r.rhythm);
                 setParam('rhythmLength', r.length);
                 setParam('clockDivide', r.suggestedDivide);
-              }
-            }}
-            className={selectCls}
-            defaultValue=""
-          >
-            <option value="" disabled>
-              Load preset…
-            </option>
-            {PRESET_RHYTHMS.map((r, i) => (
-              <option key={r.name} value={i}>
-                {i + 1}. {r.name}
-              </option>
-            ))}
-          </select>
-        </SelectRow>
+              }}
+            />
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">
+          Rhythm — Bass
+        </div>
+        <div className="flex gap-1 overflow-x-auto pb-1">
+          {PRESET_RHYTHMS.filter((r) => r.name.startsWith('Bass')).map((r) => (
+            <RhythmPresetButton
+              key={r.name}
+              preset={r}
+              isActive={rhythmMatchesPreset(motif.rhythm, motif.rhythmLength, r)}
+              accent={accent}
+              onClick={() => {
+                setParam('rhythm', r.rhythm);
+                setParam('rhythmLength', r.length);
+                setParam('clockDivide', r.suggestedDivide);
+              }}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="flex gap-2">
@@ -208,19 +259,21 @@ export function MotifPanelBody({ partId, accent, ports, onEditPattern, onEditRhy
 
       <MidiOutputSelector ports={ports} value={midi} onChange={(v) => setMidi(partId, v)} />
 
-      <div className="p-2 bg-bg-900 rounded border border-slate-700/50 flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className="text-[10px] uppercase tracking-wider text-slate-500">Step</div>
+      {/* Step + current note readout. The preview keyboard above already
+          highlights the currently-playing key, so this row only shows the
+          pattern-step position + note name. */}
+      <div className="p-2 bg-bg-900 rounded border border-slate-700/50 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-slate-500">Step</span>
           <MotifStepIndicator
             currentStep={currentStep}
             patternLength={motif.patternLength}
             accent={accent}
           />
         </div>
-        <MiniKeyboard notes={currentNote === null ? [] : [currentNote]} accent={accent} />
-        <div className="font-mono text-xs leading-none" style={{ color: accent }}>
+        <span className="font-mono text-xs" style={{ color: accent }}>
           {currentNote === null ? '—' : midiName(currentNote)}
-        </div>
+        </span>
       </div>
     </div>
   );
