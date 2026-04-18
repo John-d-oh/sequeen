@@ -19,6 +19,7 @@ import { PatternEditor } from './components/PatternEditor';
 import { RhythmEditor } from './components/RhythmEditor';
 import { ErrorBanner } from './components/ErrorBanner';
 import { ChordProgressionEditor } from './components/ChordProgressionEditor';
+import { HelpOverlay } from './components/HelpOverlay';
 
 const ACCENT: Record<PartName, string> = {
   pad: '#38bdf8',
@@ -98,6 +99,22 @@ export default function App() {
   // Chord progression editor collapse state.
   const [progressionCollapsed, setProgressionCollapsed] = useState(true);
 
+  // Help overlay. `?` opens it anywhere (unless a text input has focus).
+  const [helpOpen, setHelpOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Respect text-input focus so typing `?` in a search field doesn't hijack.
+      const target = e.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+        e.preventDefault();
+        setHelpOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // Pattern/Rhythm editor modal state.
   const [editor, setEditor] = useState<
     | { kind: 'pattern' | 'rhythm'; partId: 'motif1' | 'motif2' }
@@ -145,20 +162,52 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-bg-900 text-slate-200">
-      {/* TOP BAR */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-bg-800">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-bold tracking-widest">SEQUEEN</h1>
+      {/* TOP BAR — brand, permanent "now playing" readout, MIDI status, help */}
+      <div className="flex items-center justify-between gap-6 px-5 py-2.5 border-b border-slate-800 bg-bg-800">
+        {/* Brand */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <SequeenLogo />
+          <h1 className="text-lg font-bold tracking-[0.2em] text-slate-100">SEQUEEN</h1>
         </div>
-        <div className="flex items-center gap-3 text-xs">
-          <StatusDot status={status} />
-          <span className="text-slate-400">
-            {status === 'ready'
-              ? `${connectedCount} MIDI output${connectedCount === 1 ? '' : 's'} available`
-              : status === 'loading'
-                ? 'Initialising MIDI…'
-                : error ?? 'MIDI unavailable'}
-          </span>
+
+        {/* Now-playing readout — always visible so you know key / chord / tempo
+            without looking at the transport bar or the header. Monospace
+            numerals keep it from dancing when values change. */}
+        <div className="flex items-center gap-5 flex-1 min-w-0 justify-center">
+          <NowPlayingReadout
+            label="Key"
+            value={`${music.key} ${music.mode}`}
+          />
+          <div className="w-px h-5 bg-slate-700" />
+          <NowPlayingReadout
+            label="Chord"
+            value={`${roman} ${chordRootName}`}
+            accent="#38bdf8"
+          />
+          <div className="w-px h-5 bg-slate-700" />
+          <NowPlayingReadout label="Tempo" value={`${music.bpm} BPM`} />
+        </div>
+
+        {/* MIDI status + help */}
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2">
+            <StatusDot status={status} />
+            <span className="type-label text-slate-400 hidden md:inline">
+              {status === 'ready'
+                ? `${connectedCount} out${connectedCount === 1 ? '' : 's'}`
+                : status === 'loading'
+                  ? 'MIDI…'
+                  : 'MIDI off'}
+            </span>
+          </div>
+          <button
+            onClick={() => setHelpOpen(true)}
+            className="w-7 h-7 rounded-full border border-slate-600 text-slate-400 hover:text-slate-100 hover:border-slate-400 hover:bg-bg-700 flex items-center justify-center text-sm font-semibold"
+            aria-label="Open keyboard shortcuts"
+            title="Keyboard shortcuts (?)"
+          >
+            ?
+          </button>
         </div>
       </div>
 
@@ -449,6 +498,59 @@ export default function App() {
       {editor?.kind === 'rhythm' && (
         <RhythmEditor partId={editor.partId} onClose={closeEditor} />
       )}
+
+      {/* Help overlay — opened by `?` or the help button in the top bar. */}
+      <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+    </div>
+  );
+}
+
+/** Inline SVG brand mark — stylised waveform-Q. Scales with font-size. */
+function SequeenLogo() {
+  return (
+    <svg
+      width={26}
+      height={26}
+      viewBox="0 0 32 32"
+      aria-hidden
+      className="shrink-0"
+    >
+      <defs>
+        <linearGradient id="seqgrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#38bdf8" />
+          <stop offset="50%" stopColor="#a855f7" />
+          <stop offset="100%" stopColor="#22c55e" />
+        </linearGradient>
+      </defs>
+      {/* Four stacked "sequencer step" bars at increasing heights — reads
+          as both a waveform and as the four Sequeen parts (pad/drone/m1/m2). */}
+      <rect x={4} y={16} width={4} height={12} rx={1} fill="url(#seqgrad)" />
+      <rect x={11} y={10} width={4} height={18} rx={1} fill="url(#seqgrad)" />
+      <rect x={18} y={4} width={4} height={24} rx={1} fill="url(#seqgrad)" />
+      <rect x={25} y={12} width={4} height={16} rx={1} fill="url(#seqgrad)" />
+    </svg>
+  );
+}
+
+/** Pill used in the top bar for the permanent now-playing readout. */
+function NowPlayingReadout({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: string;
+}) {
+  return (
+    <div className="flex items-baseline gap-2 min-w-0">
+      <span className="type-label text-slate-500">{label}</span>
+      <span
+        className="type-value truncate"
+        style={accent ? { color: accent } : undefined}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -458,8 +560,9 @@ function StatusDot({ status }: { status: string }) {
     status === 'ready' ? '#22c55e' : status === 'loading' ? '#f59e0b' : '#ef4444';
   return (
     <span
-      className="w-2 h-2 rounded-full"
+      className={`w-2 h-2 rounded-full ${status === 'ready' ? 'sequeen-pulse' : ''}`}
       style={{ background: color, boxShadow: `0 0 6px ${color}` }}
+      aria-label={`MIDI ${status}`}
     />
   );
 }

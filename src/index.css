@@ -12,4 +12,87 @@ body {
   color: #e2e8f0;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 1; /* Tabular numerals — BPM/counters don't jiggle */
+}
+
+/* ---------------------------------------------------------------------------
+   Typography scale — four tiers, that's it.
+
+     .type-label  → 10px, uppercase, tracked, muted slate — tiny section tags
+     .type-body   → 13px, regular — default control text
+     .type-value  → 14px, mono — numeric readouts (BPM, note names, channel)
+     .type-title  → 18px, semibold — section titles & panel headers
+
+   Anything outside this scale should stay within Tailwind's built-in ramp,
+   but prefer these classes first so vertical rhythm stays consistent.
+   --------------------------------------------------------------------------- */
+@layer components {
+  .type-label {
+    @apply text-[10px] uppercase tracking-wider text-slate-400;
+  }
+  .type-body {
+    @apply text-[13px] text-slate-200;
+  }
+  .type-value {
+    @apply text-[14px] font-mono text-slate-100;
+  }
+  .type-title {
+    @apply text-[18px] font-semibold text-slate-100;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Focus ring — visible keyboard navigation on every interactive element.
+   Only shows for keyboard users (:focus-visible) so mouse clicks don't
+   get a ring on every button press.
+   --------------------------------------------------------------------------- */
+@layer base {
+  button:focus-visible,
+  select:focus-visible,
+  input:focus-visible,
+  [role='button']:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  /* Smooth the default interactive transitions across the app. */
+  button,
+  select,
+  input,
+  a {
+    transition: background-color 120ms ease, border-color 120ms ease,
+      color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Animations — respect prefers-reduced-motion so users with vestibular
+   sensitivity don't get motion.
+   --------------------------------------------------------------------------- */
+@keyframes sequeen-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+}
+
+.sequeen-pulse {
+  animation: sequeen-pulse 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sequeen-pulse {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
 }
