@@ -1,9 +1,12 @@
 /**
  * Compact piano keyboard showing which MIDI notes a part is currently holding.
  *
- * Renders white + black keys across a configurable MIDI range. Active notes
- * (the set passed in `notes`) are highlighted in the part's accent color.
- * Pure SVG, no interactivity — it's a read-only activity indicator.
+ * Synthwave-token edition: the white keys read as cool ivory rather than
+ * pure white (so they don't fight the dark surface), the black keys sit
+ * deep in ink-2, the panel-frame uses the new --edge token, and active
+ * keys take the part's accent color (passed in as `accent` prop).
+ *
+ * Pure SVG, no interactivity — read-only activity indicator.
  */
 export interface MiniKeyboardProps {
   /** Currently-sounding MIDI notes to highlight. */
@@ -43,11 +46,14 @@ export function MiniKeyboard({
     <svg
       width={width}
       height={height}
-      className="rounded-sm border border-slate-700/60"
-      style={{ background: '#0f172a' }}
+      className="rounded-md"
+      style={{
+        background: '#08051a', // --ink-deep / sunken
+        border: '1px solid var(--edge)',
+      }}
       aria-label="current notes"
     >
-      {/* White keys */}
+      {/* White keys — cool ivory, not pure white. Active keys take accent. */}
       {whites.map((m, i) => {
         const on = active.has(m);
         return (
@@ -57,8 +63,8 @@ export function MiniKeyboard({
             y={0}
             width={whiteWidth - 0.5}
             height={height}
-            fill={on ? accent : '#f8fafc'}
-            stroke="#475569"
+            fill={on ? accent : '#cdc4eb'}
+            stroke="#251e42"
             strokeWidth={0.5}
             opacity={on ? 1 : 0.92}
           />
@@ -78,8 +84,8 @@ export function MiniKeyboard({
             y={0}
             width={blackWidth}
             height={blackHeight}
-            fill={on ? accent : '#0f172a'}
-            stroke="#334155"
+            fill={on ? accent : '#0a0816'}
+            stroke="#1a1631"
             strokeWidth={0.5}
           />
         );

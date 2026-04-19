@@ -1,36 +1,22 @@
 /**
  * Visual variation picker for the motif engine.
  *
- * Each button renders a miniature bar chart of the variation's actual
- * step sequence (first 8 outputs at pattern length 4), so the motion of
- * each variation is readable at a glance:
- *
- *   forward         ▁▂▃▄▁▂▃▄    (ascending staircase, wrap)
- *   backward        ▄▃▂▁▄▃▂▁    (descending)
- *   pingpong        ▁▂▃▄▃▂▁▂    (mirror at the ends)
- *   pingpong_repeat ▁▂▃▄▄▃▂▁    (endpoints doubled)
- *   odd_even        ▁▃▂▄▁▃▂▄    (odd indices then even)
- *   random          scattered
- *
- * Clicking a button makes it the active variation. The active state tints
- * the background with the motif's accent colour so it's obvious which one
- * is playing.
+ * Each button renders a miniature bar chart of the variation's first 8
+ * outputs at pattern length 4. Active state uses the part accent for the
+ * border + bars + glow.
  */
 
 import { variationStep, type MotifVariation } from '../engine/parts/motif';
 
-// Icon dimensions
 const ICON_W = 52;
 const ICON_H = 26;
 const BAR_COUNT = 8;
 const DEMO_LENGTH = 4;
 const BAR_W = ICON_W / BAR_COUNT;
 
-/** Deterministic PRNG so the "random" icon doesn't flicker on re-renders. */
 function makeSeededRng(seed = 0x1f3c) {
   let state = seed;
   return () => {
-    // Linear congruential generator.
     state = (state * 9301 + 49297) % 233280;
     return state / 233280;
   };
@@ -93,19 +79,23 @@ export function VariationButton({ variation, isActive, accent, onClick }: Variat
     <button
       onClick={onClick}
       title={VARIATION_TOOLTIP[variation]}
-      className={`flex flex-col items-center gap-0.5 px-1.5 py-1 rounded transition-colors border-2 ${
-        isActive ? '' : 'border-slate-700 hover:bg-bg-700'
+      className={`flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-2xl border-2 transition-[filter,box-shadow,background] duration-120 ease-ui ${
+        isActive ? '' : 'border-edge hover:border-edge-2 hover:brightness-110'
       }`}
       style={
         isActive
-          ? { background: `${accent}22`, borderColor: accent }
-          : undefined
+          ? {
+              background: `radial-gradient(80% 120% at 50% 0%, ${accent}30, transparent 65%), linear-gradient(180deg, rgba(26,22,49,0.6), rgba(10,8,22,0.6))`,
+              borderColor: accent,
+              boxShadow: `0 0 18px -4px ${accent}99, inset 0 1px 0 rgba(255,255,255,0.06)`,
+            }
+          : { background: 'rgba(10,8,22,0.4)' }
       }
     >
-      <VariationIcon variation={variation} color={isActive ? accent : '#94a3b8'} />
+      <VariationIcon variation={variation} color={isActive ? accent : '#6F6691'} />
       <span
-        className="text-[9px] uppercase tracking-wider leading-none"
-        style={{ color: isActive ? accent : '#94a3b8' }}
+        className="text-[9px] uppercase tracking-[0.18em] leading-none font-mono"
+        style={{ color: isActive ? accent : '#6F6691' }}
       >
         {VARIATION_LABEL[variation]}
       </span>

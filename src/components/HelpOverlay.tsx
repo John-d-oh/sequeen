@@ -47,7 +47,7 @@ const NAVIGATION: Shortcut[] = [
 
 function KeyChip({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 py-0.5 text-[11px] font-mono bg-bg-700 border border-slate-600 rounded text-slate-100 shadow-[0_1px_0_#334155]">
+    <kbd className="chip inline-flex items-center justify-center min-w-[1.75rem] px-1.5 py-0.5 text-[11px] font-mono">
       {children}
     </kbd>
   );
@@ -56,11 +56,11 @@ function KeyChip({ children }: { children: React.ReactNode }) {
 function ShortcutRow({ keys, label }: Shortcut) {
   return (
     <li className="flex items-center justify-between gap-3 py-1">
-      <span className="type-body text-slate-300">{label}</span>
+      <span className="text-body text-fg-dim">{label}</span>
       <span className="flex items-center gap-1">
         {keys.map((k, i) => (
           <span key={i} className="flex items-center gap-1">
-            {i > 0 && <span className="text-slate-600 text-xs">+</span>}
+            {i > 0 && <span className="text-fg-mute text-xs">+</span>}
             <KeyChip>{k}</KeyChip>
           </span>
         ))}
@@ -96,21 +96,27 @@ export function HelpOverlay({ open, onClose }: HelpOverlayProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      style={{ background: 'rgba(7,4,16,0.78)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Keyboard shortcuts"
     >
       <div
-        className="w-full max-w-2xl rounded-lg bg-bg-800 border border-slate-700 shadow-2xl"
+        className="panel w-full max-w-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between px-5 py-3 border-b border-slate-700">
-          <h2 className="type-title">Keyboard shortcuts</h2>
+        <header
+          className="flex items-center justify-between px-5 py-3"
+          style={{ borderBottom: '1px solid var(--edge)' }}
+        >
+          <h2 className="font-display font-bold text-[18px] text-fg">
+            Keyboard shortcuts
+          </h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-100 text-xl leading-none w-7 h-7 flex items-center justify-center rounded hover:bg-bg-700"
+            className="text-fg-mute hover:text-fg text-xl leading-none w-7 h-7 flex items-center justify-center rounded-md hover:bg-ink-4"
             aria-label="Close help"
           >
             ×
@@ -123,7 +129,10 @@ export function HelpOverlay({ open, onClose }: HelpOverlayProps) {
           <Section title="Navigation" items={NAVIGATION} />
         </div>
 
-        <footer className="px-5 py-3 border-t border-slate-700 type-body text-slate-500">
+        <footer
+          className="px-5 py-3 type-body text-fg-mute"
+          style={{ borderTop: '1px solid var(--edge)' }}
+        >
           Tip: shortcuts are ignored while typing in an input or dropdown.
         </footer>
       </div>

@@ -21,11 +21,16 @@ import { ErrorBanner } from './components/ErrorBanner';
 import { ChordProgressionEditor } from './components/ChordProgressionEditor';
 import { HelpOverlay } from './components/HelpOverlay';
 
+// Synthwave palette — cyan / magenta / violet / amber.
+// Roles per the design spec: Pad = cyan (sustained chords),
+// Drone = magenta (low pedal tones), Motif 1 = violet (upper arpeggio),
+// Motif 2 = amber (bassline). Hexes match the `--cy`, `--mag`, `--vi`,
+// `--am` CSS variables in index.css so inline styles + CSS stay in sync.
 const ACCENT: Record<PartName, string> = {
-  pad: '#38bdf8',
-  drone: '#a855f7',
-  motif1: '#22c55e',
-  motif2: '#f59e0b',
+  pad: '#00D9FF',
+  drone: '#FF2BD6',
+  motif1: '#B56BFF',
+  motif2: '#FFB547',
 };
 
 const PART_TITLE: Record<PartName, string> = {
@@ -163,12 +168,32 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col bg-bg-900 text-slate-200">
       {/* TOP BAR — brand, permanent "now playing" readout, MIDI status, help */}
-      <div className="flex items-center justify-between gap-6 px-5 py-2.5 border-b border-slate-800 bg-bg-800">
-        {/* Brand */}
-        <div className="flex items-center gap-2.5 shrink-0">
+      <div className="glass flex items-center justify-between gap-6 px-5 py-3 sticky top-0 z-30">
+        {/* Brand mark — conic-gradient badge + Space Grotesk italic wordmark
+            with chrome gradient. Restraint is what makes it read as
+            designed rather than nostalgic. */}
+        <a
+          href="#top"
+          className="flex items-center gap-3 shrink-0 group focus:outline-none"
+          onClick={(e) => e.preventDefault()}
+          aria-label="Sequeen"
+        >
           <SequeenLogo />
-          <h1 className="text-lg font-bold tracking-[0.2em] text-slate-100">SEQUEEN</h1>
-        </div>
+          <span
+            className="font-display italic font-bold text-[26px] leading-none tracking-[-0.02em] select-none"
+            style={{
+              backgroundImage:
+                'linear-gradient(180deg, #F6EEFF 0%, #CFC3F0 32%, #6A5FA0 64%, #1A1631 100%)',
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              color: 'transparent',
+              textShadow: '0 1px 0 rgba(255,255,255,0.04)',
+            }}
+          >
+            Sequeen
+          </span>
+        </a>
 
         {/* Now-playing readout — always visible so you know key / chord / tempo
             without looking at the transport bar or the header. Monospace
@@ -182,7 +207,7 @@ export default function App() {
           <NowPlayingReadout
             label="Chord"
             value={`${roman} ${chordRootName}`}
-            accent="#38bdf8"
+            accent={isBorrowed ? '#FFB547' : '#5CE8FF'}
           />
           <div className="w-px h-5 bg-slate-700" />
           <NowPlayingReadout label="Tempo" value={`${music.bpm} BPM`} />
@@ -215,13 +240,13 @@ export default function App() {
       <ErrorBanner status={status} error={error} outputCount={connectedCount} />
 
       {/* HEADER */}
-      <div className="px-6 py-4 border-b border-slate-800 bg-bg-800/60">
+      <div className="px-6 py-4 border-b border-edge-subtle">
         <div className="flex flex-wrap items-end gap-6">
           <Field label="Key">
             <select
               value={music.key}
               onChange={(e) => setKey(e.target.value)}
-              className="bg-bg-900 border border-slate-700 text-slate-100 rounded px-2 py-1 text-sm"
+              className="sunken text-slate-100 px-2.5 py-1.5 text-sm focus:outline-none"
             >
               {KEYS.map((k) => (
                 <option key={k} value={k}>
@@ -234,7 +259,7 @@ export default function App() {
             <select
               value={music.mode}
               onChange={(e) => setMode(e.target.value)}
-              className="bg-bg-900 border border-slate-700 text-slate-100 rounded px-2 py-1 text-sm"
+              className="sunken text-slate-100 px-2.5 py-1.5 text-sm focus:outline-none"
             >
               {Object.keys(MODES).map((m) => (
                 <option key={m} value={m}>
@@ -247,7 +272,7 @@ export default function App() {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setBpm(music.bpm - 1)}
-                className="bg-slate-700 hover:bg-slate-600 rounded w-6 h-6 text-xs"
+                className="chip rounded-md w-7 h-7 text-sm leading-none hover:brightness-110"
               >
                 −
               </button>
@@ -257,11 +282,11 @@ export default function App() {
                 max={300}
                 value={music.bpm}
                 onChange={(e) => setBpm(Number(e.target.value) || music.bpm)}
-                className="w-16 bg-bg-900 border border-slate-700 text-center rounded py-1 text-sm font-mono"
+                className="sunken w-16 text-center py-1.5 text-sm font-mono text-slate-100 focus:outline-none"
               />
               <button
                 onClick={() => setBpm(music.bpm + 1)}
-                className="bg-slate-700 hover:bg-slate-600 rounded w-6 h-6 text-xs"
+                className="chip rounded-md w-7 h-7 text-sm leading-none hover:brightness-110"
               >
                 +
               </button>
@@ -270,7 +295,7 @@ export default function App() {
           <Field label="Current Chord">
             <div
               className="font-mono text-lg"
-              style={{ color: isBorrowed ? '#fbbf24' : '#7dd3fc' }}
+              style={{ color: isBorrowed ? '#FFB547' : '#5CE8FF' }}
             >
               {roman}{' '}
               <span className="text-slate-300">{chordRootName}</span>{' '}
@@ -286,28 +311,37 @@ export default function App() {
       </div>
 
       {/* CHORD BUTTONS */}
-      <div className="px-6 py-4 border-b border-slate-800 bg-bg-800/40 flex flex-col items-center gap-3">
+      <div className="px-6 py-5 border-b border-edge-subtle flex flex-col items-center gap-3">
         {/* Alteration modifiers + degree buttons */}
         <div className="flex flex-wrap gap-2 justify-center items-stretch">
           {/* b / natural / # sticky modifier pills */}
-          <div className="inline-flex rounded-md border-2 border-slate-700 overflow-hidden self-center">
+          <div className="inline-flex rounded-xl chip p-0.5 self-center gap-0.5">
             <button
               onClick={() => setAlteration(-1)}
-              className={`px-3 py-2 font-semibold text-lg min-w-[40px] ${
+              className={`px-2.5 py-2 font-semibold text-lg min-w-[34px] rounded-lg ${
                 music.alteration === -1
-                  ? 'bg-amber-500 text-slate-900'
-                  : 'bg-bg-900 text-slate-400 hover:bg-bg-700'
+                  ? 'text-slate-900'
+                  : 'text-slate-400 hover:text-slate-100'
               }`}
+              style={
+                music.alteration === -1
+                  ? {
+                      background:
+                        'linear-gradient(180deg, #fb923c 0%, #f97316 100%)',
+                      boxShadow: '0 0 10px -2px #fb923c99',
+                    }
+                  : undefined
+              }
               title="Flat modifier — flattens the next chord root (bII, bIII, bVI, bVII)"
             >
               ♭
             </button>
             <button
               onClick={() => setAlteration(0)}
-              className={`px-3 py-2 font-semibold text-xs min-w-[40px] ${
+              className={`px-2.5 py-2 font-semibold text-sm min-w-[34px] rounded-lg ${
                 music.alteration === 0
-                  ? 'bg-slate-200 text-slate-900'
-                  : 'bg-bg-900 text-slate-400 hover:bg-bg-700'
+                  ? 'bg-slate-100 text-slate-900'
+                  : 'text-slate-400 hover:text-slate-100'
               }`}
               title="Natural — diatonic chord"
             >
@@ -315,11 +349,20 @@ export default function App() {
             </button>
             <button
               onClick={() => setAlteration(1)}
-              className={`px-3 py-2 font-semibold text-lg min-w-[40px] ${
+              className={`px-2.5 py-2 font-semibold text-lg min-w-[34px] rounded-lg ${
                 music.alteration === 1
-                  ? 'bg-amber-500 text-slate-900'
-                  : 'bg-bg-900 text-slate-400 hover:bg-bg-700'
+                  ? 'text-slate-900'
+                  : 'text-slate-400 hover:text-slate-100'
               }`}
+              style={
+                music.alteration === 1
+                  ? {
+                      background:
+                        'linear-gradient(180deg, #fb923c 0%, #f97316 100%)',
+                      boxShadow: '0 0 10px -2px #fb923c99',
+                    }
+                  : undefined
+              }
               title="Sharp modifier — raises the next chord root (#IV, #V)"
             >
               ♯
@@ -346,10 +389,10 @@ export default function App() {
             <button
               key={ct}
               onClick={() => setChordType(ct as ChordTypeName)}
-              className={`px-3 py-1 rounded border ${
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-medium tracking-wide ${
                 music.chordType === ct
-                  ? 'bg-slate-200 text-slate-900 border-slate-100'
-                  : 'bg-bg-900 border-slate-700 text-slate-300 hover:bg-bg-700'
+                  ? 'bg-slate-100 text-slate-900'
+                  : 'chip text-slate-300 hover:text-slate-100 hover:brightness-110'
               }`}
             >
               {ct}
@@ -388,106 +431,177 @@ export default function App() {
         onToggleCollapsed={() => setProgressionCollapsed((v) => !v)}
       />
 
-      {/* PART GRID */}
-      <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
-        <PartPanel
-          title={PART_TITLE.pad}
-          color="sky"
-          accentHex={ACCENT.pad}
-          status={transport.parts.pad}
-          onToggle={() => togglePart('pad')}
-        >
-          <PadPanelBody ports={ports} />
-        </PartPanel>
+      {/* PART GRID
+          Two rows: Pad + Drone on top (compact, side-by-side), Motif 1 +
+          Motif 2 below (full size). Pad and Drone have far fewer controls
+          than the motifs so a horizontal-internal-layout works for them
+          and they end up significantly shorter than the motif panels. */}
+      <main className="flex-1 p-6 flex flex-col gap-6 min-h-0">
+        {/* Compact row — Pad + Drone */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <PartPanel
+            partId="pad"
+            title={PART_TITLE.pad}
+            accentHex={ACCENT.pad}
+            status={transport.parts.pad}
+            onToggle={() => togglePart('pad')}
+          >
+            <PadPanelBody ports={ports} />
+          </PartPanel>
 
-        <PartPanel
-          title={PART_TITLE.motif1}
-          color="green"
-          accentHex={ACCENT.motif1}
-          status={transport.parts.motif1}
-          onToggle={() => togglePart('motif1')}
-        >
-          <MotifPanelBody
+          <PartPanel
+            partId="drone"
+            title={PART_TITLE.drone}
+            accentHex={ACCENT.drone}
+            status={transport.parts.drone}
+            onToggle={() => togglePart('drone')}
+          >
+            <DronePanelBody ports={ports} />
+          </PartPanel>
+        </div>
+
+        {/* Full row — Motif 1 + Motif 2 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <PartPanel
             partId="motif1"
-            accent={ACCENT.motif1}
-            ports={ports}
-            onEditPattern={openPatternEditor}
-            onEditRhythm={openRhythmEditor}
-          />
-        </PartPanel>
+            title={PART_TITLE.motif1}
+            accentHex={ACCENT.motif1}
+            status={transport.parts.motif1}
+            onToggle={() => togglePart('motif1')}
+          >
+            <MotifPanelBody
+              partId="motif1"
+              accent={ACCENT.motif1}
+              ports={ports}
+              onEditPattern={openPatternEditor}
+              onEditRhythm={openRhythmEditor}
+            />
+          </PartPanel>
 
-        <PartPanel
-          title={PART_TITLE.drone}
-          color="violet"
-          accentHex={ACCENT.drone}
-          status={transport.parts.drone}
-          onToggle={() => togglePart('drone')}
-        >
-          <DronePanelBody ports={ports} />
-        </PartPanel>
-
-        <PartPanel
-          title={PART_TITLE.motif2}
-          color="amber"
-          accentHex={ACCENT.motif2}
-          status={transport.parts.motif2}
-          onToggle={() => togglePart('motif2')}
-        >
-          <MotifPanelBody
+          <PartPanel
             partId="motif2"
-            accent={ACCENT.motif2}
-            ports={ports}
-            onEditPattern={openPatternEditor}
-            onEditRhythm={openRhythmEditor}
-          />
-        </PartPanel>
+            title={PART_TITLE.motif2}
+            accentHex={ACCENT.motif2}
+            status={transport.parts.motif2}
+            onToggle={() => togglePart('motif2')}
+          >
+            <MotifPanelBody
+              partId="motif2"
+              accent={ACCENT.motif2}
+              ports={ports}
+              onEditPattern={openPatternEditor}
+              onEditRhythm={openRhythmEditor}
+            />
+          </PartPanel>
+        </div>
       </main>
 
-      {/* TRANSPORT BAR */}
-      <div className="px-6 py-3 border-t border-slate-800 bg-bg-800 flex items-center justify-between">
+      {/* TRANSPORT BAR — synthwave finish:
+            - PLAY ALL  : mint --g-play gradient + ok-tinted glow
+            - STOP ALL  : siren red gradient + siren glow
+            - PANIC     : siren-coloured chip
+            - Activity  : per-part dots with scale-pulse keyframe + accent glow
+            - BPM       : large mono value with the warn-orange "REC" cue
+                          when global play is on. */}
+      <div
+        className="glass px-6 py-3 flex items-center justify-between sticky bottom-0 z-30"
+        style={{ borderTop: '1px solid var(--edge)', borderBottom: 'none' }}
+      >
         <div className="flex items-center gap-2">
           <button
             onClick={toggleGlobalPlay}
-            className={`px-4 py-2 rounded font-semibold text-sm transition-colors ${
+            className="px-5 py-2 rounded-xl font-semibold text-sm tracking-wide active:scale-[0.97] transition-[filter,transform,box-shadow] duration-120 ease-ui hover:brightness-110"
+            style={
               transport.globalPlaying
-                ? 'bg-rose-500 hover:bg-rose-600 text-slate-900'
-                : 'bg-emerald-500 hover:bg-emerald-600 text-slate-900'
-            }`}
+                ? {
+                    background:
+                      'linear-gradient(180deg, #FF4E6B 0%, #c91839 100%)',
+                    color: '#1a0205',
+                    boxShadow:
+                      '0 0 22px -2px rgba(255,78,107,0.55), inset 0 1px 0 rgba(255,255,255,0.28)',
+                  }
+                : {
+                    background: 'var(--g-play)',
+                    color: '#03130c',
+                    boxShadow:
+                      '0 0 22px -2px rgba(78,240,193,0.55), inset 0 1px 0 rgba(255,255,255,0.32)',
+                  }
+            }
           >
             {transport.globalPlaying ? '■ STOP ALL' : '▶ PLAY ALL'}
           </button>
           <button
             onClick={() => sequeenEngine.panic()}
-            className="px-3 py-2 rounded text-xs font-semibold bg-red-900 hover:bg-red-800 text-red-100 border border-red-700"
-            title="All notes off, all channels, all ports"
+            className="chip px-3 py-2 rounded-xl text-xs font-bold tracking-wide hover:brightness-110"
+            style={{
+              color: '#FF4E6B',
+              borderColor: 'rgba(255,78,107,0.45)',
+            }}
+            title="All notes off, all channels, all ports (P)"
           >
             PANIC
           </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          {PART_LIST.map((p) => (
-            <div key={p} className="flex items-center gap-1 text-[11px] uppercase">
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{
-                  background:
-                    transport.parts[p] === 'playing'
+        <div className="flex items-center gap-4">
+          {PART_LIST.map((p) => {
+            const status = transport.parts[p];
+            const isPlaying = status === 'playing';
+            const isArmed = status === 'armed';
+            return (
+              <div key={p} className="flex items-center gap-1.5 text-lbl">
+                <span
+                  className={`w-2.5 h-2.5 rounded-full ${
+                    isPlaying ? 'animate-pulse' : ''
+                  }`}
+                  style={{
+                    background: isPlaying
                       ? ACCENT[p]
-                      : transport.parts[p] === 'armed'
-                        ? '#f59e0b'
-                        : '#334155',
-                  boxShadow: transport.parts[p] === 'playing' ? `0 0 6px ${ACCENT[p]}` : 'none',
-                }}
-              />
-              <span className="text-slate-400">{PART_TITLE[p]}</span>
-            </div>
-          ))}
+                      : isArmed
+                        ? '#FFB547'
+                        : 'transparent',
+                    border:
+                      status === 'stopped' ? '1px solid var(--edge-2)' : 'none',
+                    boxShadow: isPlaying
+                      ? `0 0 12px ${ACCENT[p]}, 0 0 4px ${ACCENT[p]}`
+                      : isArmed
+                        ? '0 0 8px rgba(255,181,71,0.7)'
+                        : 'none',
+                  }}
+                />
+                <span
+                  className="font-mono"
+                  style={{
+                    color: isPlaying ? ACCENT[p] : 'var(--fg-mute)',
+                    textShadow: isPlaying ? `0 0 8px ${ACCENT[p]}66` : undefined,
+                  }}
+                >
+                  {PART_TITLE[p]}
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         <div className="flex items-center gap-4">
-          <BeatIndicator currentBeat={transport.currentBeat} isPlaying={transport.globalPlaying} />
-          <div className="font-mono text-sm text-slate-300">{music.bpm} BPM</div>
+          <BeatIndicator
+            currentBeat={transport.currentBeat}
+            isPlaying={transport.globalPlaying}
+          />
+          <div className="flex items-baseline gap-1.5">
+            <span
+              className="font-mono font-semibold text-[20px] tabular-nums leading-none"
+              style={{
+                color: transport.globalPlaying ? '#5CE8FF' : 'var(--fg)',
+                textShadow: transport.globalPlaying
+                  ? '0 0 14px rgba(0,217,255,0.6)'
+                  : undefined,
+              }}
+            >
+              {music.bpm}
+            </span>
+            <span className="text-lbl text-fg-mute">BPM</span>
+          </div>
         </div>
       </div>
 
@@ -505,30 +619,56 @@ export default function App() {
   );
 }
 
-/** Inline SVG brand mark — stylised waveform-Q. Scales with font-size. */
+/**
+ * Brand badge — a conic-gradient ring (the synthwave palette spinning
+ * around the circumference) framing four sequencer-step bars in dark ink.
+ *
+ * The conic ring is rendered as a circle with the `--g-brand-ring` gradient
+ * as its background; an inner ink-colored circle "punches" the centre so
+ * only the rim of the gradient remains visible. The four bars inside read
+ * both as a waveform glyph and as the four Sequeen parts.
+ */
 function SequeenLogo() {
   return (
-    <svg
-      width={26}
-      height={26}
-      viewBox="0 0 32 32"
+    <span
+      className="relative inline-flex shrink-0"
+      style={{ width: 32, height: 32 }}
       aria-hidden
-      className="shrink-0"
     >
-      <defs>
-        <linearGradient id="seqgrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#38bdf8" />
-          <stop offset="50%" stopColor="#a855f7" />
-          <stop offset="100%" stopColor="#22c55e" />
-        </linearGradient>
-      </defs>
-      {/* Four stacked "sequencer step" bars at increasing heights — reads
-          as both a waveform and as the four Sequeen parts (pad/drone/m1/m2). */}
-      <rect x={4} y={16} width={4} height={12} rx={1} fill="url(#seqgrad)" />
-      <rect x={11} y={10} width={4} height={18} rx={1} fill="url(#seqgrad)" />
-      <rect x={18} y={4} width={4} height={24} rx={1} fill="url(#seqgrad)" />
-      <rect x={25} y={12} width={4} height={16} rx={1} fill="url(#seqgrad)" />
-    </svg>
+      {/* Conic-gradient ring */}
+      <span
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: 'var(--g-brand-ring)',
+          padding: 1.5,
+          mask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+          WebkitMask:
+            'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+          maskComposite: 'exclude',
+          WebkitMaskComposite: 'xor',
+        }}
+      />
+      {/* Inner glyph */}
+      <svg
+        width={32}
+        height={32}
+        viewBox="0 0 32 32"
+        className="relative"
+      >
+        <defs>
+          <linearGradient id="seqGlyphFg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FF2BD6" />
+            <stop offset="50%" stopColor="#B56BFF" />
+            <stop offset="100%" stopColor="#00D9FF" />
+          </linearGradient>
+        </defs>
+        {/* Four bars — sequencer steps that also read as a waveform */}
+        <rect x={8.5} y={18} width={2.4} height={7} rx={1} fill="url(#seqGlyphFg)" />
+        <rect x={12.5} y={13} width={2.4} height={12} rx={1} fill="url(#seqGlyphFg)" />
+        <rect x={16.5} y={9} width={2.4} height={16} rx={1} fill="url(#seqGlyphFg)" />
+        <rect x={20.5} y={15} width={2.4} height={10} rx={1} fill="url(#seqGlyphFg)" />
+      </svg>
+    </span>
   );
 }
 

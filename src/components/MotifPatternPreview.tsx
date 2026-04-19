@@ -116,20 +116,26 @@ export function MotifPatternPreview({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wider text-slate-400">
-          Pattern notes
-        </span>
-        <span className="text-[10px] text-slate-500 font-mono">
+        <span className="text-lbl">Pattern notes</span>
+        <span className="text-[10px] text-fg-mute font-mono">
           {previewNotes.length} note{previewNotes.length === 1 ? '' : 's'}
           {previewNotes.length > 0 &&
             ` · ${midiName(previewNotes[0])}–${midiName(previewNotes[previewNotes.length - 1])}`}
         </span>
       </div>
 
-      <div className="overflow-x-auto">
-        <svg width={width} height={H} className="rounded border border-slate-700/60">
-          <rect x={0} y={0} width={width} height={H} fill="#0f172a" />
-          {/* White keys */}
+      <div className="overflow-x-auto sunken p-0">
+        <svg width={width} height={H} className="rounded-md block">
+          <defs>
+            {/* Subtle vertical gradient under the active key glow */}
+            <linearGradient id="kbBg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#0c0816" />
+              <stop offset="100%" stopColor="#06030f" />
+            </linearGradient>
+          </defs>
+          <rect x={0} y={0} width={width} height={H} fill="url(#kbBg)" />
+
+          {/* White keys — cool ivory; preview = accent-tinted; current = solid + glow */}
           {whites.map((midi, i) => {
             const isPreview = activeSet.has(midi);
             const isCurrent = currentNote === midi;
@@ -137,7 +143,7 @@ export function MotifPatternPreview({
               ? accent
               : isPreview
                 ? `${accent}88`
-                : '#f8fafc';
+                : '#cdc4eb';
             return (
               <rect
                 key={midi}
@@ -146,8 +152,13 @@ export function MotifPatternPreview({
                 width={WHITE_W - 0.5}
                 height={H}
                 fill={fill}
-                stroke="#475569"
+                stroke="#251e42"
                 strokeWidth={0.5}
+                style={
+                  isCurrent
+                    ? { filter: `drop-shadow(0 0 6px ${accent})` }
+                    : undefined
+                }
               />
             );
           })}
@@ -162,7 +173,7 @@ export function MotifPatternPreview({
               ? accent
               : isPreview
                 ? `${accent}cc`
-                : '#0f172a';
+                : '#0a0816';
             return (
               <rect
                 key={midi}
@@ -171,8 +182,13 @@ export function MotifPatternPreview({
                 width={BLACK_W}
                 height={BLACK_H}
                 fill={fill}
-                stroke="#334155"
+                stroke="#1a1631"
                 strokeWidth={0.5}
+                style={
+                  isCurrent
+                    ? { filter: `drop-shadow(0 0 6px ${accent})` }
+                    : undefined
+                }
               />
             );
           })}
@@ -187,8 +203,8 @@ export function MotifPatternPreview({
                   x={i * WHITE_W + 1}
                   y={H - 2}
                   fontSize={7}
-                  fill="#64748b"
-                  fontFamily="monospace"
+                  fill="#6F6691"
+                  fontFamily="JetBrains Mono, monospace"
                 >
                   C{Math.floor(m / 12) - 1}
                 </text>

@@ -333,51 +333,93 @@ function Timeline({
   onRemoveStep,
 }: TimelineProps) {
   return (
-    <div className="flex gap-0.5 bg-bg-900 border border-slate-700 rounded p-1 h-14">
+    <div
+      className="flex gap-1 sunken p-1.5 h-16"
+      style={{ borderRadius: 12 }}
+    >
       {progression.degrees.map((step, idx) => {
-        // Proportional width so a 2-bar chord is twice as wide as a 1-bar chord.
+        // Proportional width so a 2-bar chord is twice as wide as a 1-bar.
         const flex = step.bars;
         const isCurrent = idx === currentStepIdx;
         const isSelected = idx === selectedStepIdx;
         const borrowed = isBorrowed(step);
-        const baseColor = borrowed ? '#d97706' : '#0ea5e9'; // amber vs sky
-        const bg = isSelected
-          ? '#facc15'
-          : isCurrent
-            ? baseColor
-            : `${baseColor}55`;
-        const border = isSelected
-          ? '#fde047'
-          : isCurrent
-            ? baseColor
-            : `${baseColor}80`;
-        const glow = isCurrent ? `0 0 10px ${baseColor}` : 'none';
+        // Synthwave palette: cyan for diatonic, amber for borrowed.
+        const baseColor = borrowed ? '#FFB547' : '#00D9FF';
+
+        // Three visual states layered priority: current > selected > idle.
+        const idleStyle: React.CSSProperties = {
+          background: borrowed
+            ? `linear-gradient(180deg, rgba(255,181,71,0.16), rgba(255,181,71,0.04))`
+            : `linear-gradient(180deg, rgba(0,217,255,0.12), rgba(0,217,255,0.04))`,
+          border: `1px solid ${baseColor}66`,
+        };
+        const selectedStyle: React.CSSProperties = {
+          background: 'linear-gradient(180deg, rgba(255,181,71,0.25), rgba(255,181,71,0.08))',
+          border: '2px solid #FFB547',
+          boxShadow: '0 0 14px -4px rgba(255,181,71,0.7)',
+        };
+        const currentDiatonicStyle: React.CSSProperties = {
+          background: `radial-gradient(80% 120% at 50% 0%, ${baseColor}38, transparent 60%), linear-gradient(180deg, rgba(26,22,49,0.7), rgba(10,8,22,0.7))`,
+          border: `2px solid ${baseColor}`,
+          boxShadow: `0 0 22px -4px ${baseColor}cc, inset 0 1px 0 rgba(255,255,255,0.1)`,
+        };
+        // Current + borrowed = sunset border via padding/border-box trick.
+        const currentBorrowedStyle: React.CSSProperties = {
+          background:
+            'linear-gradient(180deg, rgba(26,22,49,0.85), rgba(10,8,22,0.85)) padding-box, var(--g-sunset) border-box',
+          border: '2px solid transparent',
+          boxShadow: '0 0 24px -4px rgba(255,107,61,0.55), inset 0 1px 0 rgba(255,255,255,0.08)',
+        };
+
+        const style = isCurrent
+          ? borrowed
+            ? currentBorrowedStyle
+            : currentDiatonicStyle
+          : isSelected
+            ? selectedStyle
+            : idleStyle;
+
         return (
           <button
             key={idx}
             onClick={() => onSelectStep(idx)}
-            className="relative flex items-center justify-center rounded transition-all min-w-0"
-            style={{
-              flex,
-              background: bg,
-              border: `2px solid ${border}`,
-              boxShadow: glow,
-            }}
+            className="relative flex items-center justify-center rounded-lg transition-[filter,box-shadow,background] duration-120 ease-ui min-w-0"
+            style={{ flex, ...style }}
             title={`Step ${idx + 1}: ${labelForStep(step)} (${step.bars} bar${step.bars === 1 ? '' : 's'})`}
           >
             <div className="flex flex-col items-center leading-tight">
-              <span className="font-semibold text-sm text-slate-100">
+              <span
+                className="font-display font-semibold text-[15px]"
+                style={{
+                  color: isCurrent
+                    ? borrowed
+                      ? '#FFB547'
+                      : '#5CE8FF'
+                    : `${baseColor}`,
+                }}
+              >
                 {labelForStep(step)}
               </span>
-              <span className="text-[9px] font-mono opacity-75 text-slate-100">
+              <span
+                className="text-[9px] font-mono opacity-80"
+                style={{ color: isCurrent ? '#E9E4FF' : 'var(--fg-mute)' }}
+              >
                 {step.bars}b
               </span>
             </div>
             {/* Playhead progress bar within the current step */}
             {isCurrent && step.bars > 1 && (
               <div
-                className="absolute bottom-0 left-0 h-0.5 bg-slate-100"
-                style={{ width: `${(barInStep / step.bars) * 100}%` }}
+                className="absolute bottom-0 left-0 h-0.5"
+                style={{
+                  width: `${(barInStep / step.bars) * 100}%`,
+                  background: borrowed
+                    ? 'var(--g-sunset)'
+                    : '#5CE8FF',
+                  boxShadow: borrowed
+                    ? '0 0 6px rgba(255,107,61,0.6)'
+                    : '0 0 6px rgba(0,217,255,0.6)',
+                }}
               />
             )}
             {/* Remove button */}

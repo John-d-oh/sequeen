@@ -76,7 +76,7 @@ export function ErrorBanner({ status, error, outputCount }: ErrorBannerProps) {
             <em>a2jmidid</em> to expose a JACK/ALSA bridge your DAW can read.
           </li>
         </ul>
-        <div className="text-red-300/80 mt-1">
+        <div className="text-fg-dim mt-1">
           After creating a port, reload the page so Sequeen can pick it up.
         </div>
       </div>
@@ -84,17 +84,32 @@ export function ErrorBanner({ status, error, outputCount }: ErrorBannerProps) {
   }
 
   return (
-    <div className="bg-red-900/30 border-y border-red-700/60 px-6 py-3">
+    <div
+      className="px-6 py-3 border-y"
+      style={{
+        background:
+          'linear-gradient(180deg, rgba(255,78,107,0.14), rgba(255,78,107,0.06))',
+        borderColor: 'rgba(255,78,107,0.4)',
+        boxShadow:
+          'inset 0 1px 0 rgba(255,255,255,0.04), 0 8px 30px -12px rgba(255,78,107,0.3)',
+      }}
+    >
       <div className="flex items-start gap-3 max-w-5xl">
         <span
           aria-hidden
-          className="text-red-300 text-lg leading-none select-none mt-0.5"
+          className="text-lg leading-none select-none mt-0.5"
+          style={{ color: '#FF4E6B' }}
         >
           ⚠
         </span>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-red-100 text-sm">{title}</div>
-          <div className="text-xs text-red-200/80 mt-1 leading-relaxed">{body}</div>
+          <div
+            className="font-display font-semibold text-sm"
+            style={{ color: '#FFD3DD' }}
+          >
+            {title}
+          </div>
+          <div className="text-xs text-fg-dim mt-1 leading-relaxed">{body}</div>
         </div>
       </div>
     </div>

@@ -1,13 +1,6 @@
 /**
- * Visual pattern-preset picker.
- *
- * Each button shows a mini bar chart of the preset's pattern values
- * (bar heights normalised to the pattern's max), so "Ascending" looks
- * like a staircase, "Descending" like an inverted staircase, "Octave
- * Jump" zigzags, etc. The name is displayed below.
- *
- * A preset is shown as "active" when the motif's currently-loaded
- * pattern matches the preset's values (within the active length).
+ * Visual pattern-preset picker — bar chart of each preset's actual values.
+ * Active state: accent border + glow + radial accent fill behind the bars.
  */
 
 import type { MotifPatternPreset } from '../data/presetPatterns';
@@ -57,23 +50,27 @@ export function PatternPresetButton({
     <button
       onClick={onClick}
       title={`${preset.name} — [${preset.pattern.slice(0, preset.length).join(', ')}]`}
-      className={`flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded transition-colors border-2 min-w-[72px] ${
-        isActive ? '' : 'border-slate-700 hover:bg-bg-700'
+      className={`flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-2xl border-2 min-w-[72px] transition-[filter,box-shadow,background] duration-120 ease-ui ${
+        isActive ? '' : 'border-edge hover:border-edge-2 hover:brightness-110'
       }`}
       style={
         isActive
-          ? { background: `${accent}22`, borderColor: accent }
-          : undefined
+          ? {
+              background: `radial-gradient(80% 120% at 50% 0%, ${accent}30, transparent 65%), linear-gradient(180deg, rgba(26,22,49,0.6), rgba(10,8,22,0.6))`,
+              borderColor: accent,
+              boxShadow: `0 0 18px -4px ${accent}99, inset 0 1px 0 rgba(255,255,255,0.06)`,
+            }
+          : { background: 'rgba(10,8,22,0.4)' }
       }
     >
       <PatternIcon
         values={preset.pattern}
         length={preset.length}
-        color={isActive ? accent : '#94a3b8'}
+        color={isActive ? accent : '#6F6691'}
       />
       <span
-        className="text-[9px] text-center leading-tight max-w-[64px] truncate"
-        style={{ color: isActive ? accent : '#94a3b8' }}
+        className="text-[9px] text-center leading-tight max-w-[64px] truncate font-mono uppercase tracking-wider"
+        style={{ color: isActive ? accent : '#6F6691' }}
       >
         {preset.name}
       </span>
@@ -81,7 +78,6 @@ export function PatternPresetButton({
   );
 }
 
-/** Helper so MotifPanelBody can decide which preset button is active. */
 export function patternMatchesPreset(
   currentPattern: readonly number[],
   currentLength: number,

@@ -1,16 +1,12 @@
 /**
  * Visual rhythm-preset picker.
  *
- * Each button renders a miniature rhythm strip: one cell per active
- * beat showing the beat's type at a glance —
+ *   note      vertical bar, height ∝ velocity (in part accent when active)
+ *   rest      small siren-red dot
+ *   tie       horizontal mint line spanning the cell (held from prev note)
  *
- *   note      vertical bar, height ∝ velocity
- *   rest      small red dot
- *   tie       horizontal green line spanning the cell (held from prev note)
- *
- * This matches the visual vocabulary in the rhythm editor and makes it
- * trivial to spot "lots of notes" (solid bars) vs "sparse" (mostly dots)
- * vs "legato" (tied lines) rhythms without reading any labels.
+ * Active state: accent border + glow + radial accent fill, matching the
+ * other preset buttons for visual consistency.
  */
 
 import type { MotifRhythmBeat } from '../engine/parts/motif';
@@ -56,7 +52,7 @@ function RhythmIcon({
               cx={x + cellW / 2}
               cy={ICON_H / 2}
               r={1.5}
-              fill="#ef4444"
+              fill="#FF4E6B"
             />
           );
         }
@@ -68,7 +64,7 @@ function RhythmIcon({
             y1={ICON_H / 2}
             x2={x + cellW}
             y2={ICON_H / 2}
-            stroke="#22c55e"
+            stroke="#4EF0C1"
             strokeWidth={2}
             strokeLinecap="square"
           />
@@ -95,23 +91,27 @@ export function RhythmPresetButton({
     <button
       onClick={onClick}
       title={`${preset.name} · length ${preset.length} · ${preset.suggestedDivide}`}
-      className={`flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded transition-colors border-2 min-w-[84px] ${
-        isActive ? '' : 'border-slate-700 hover:bg-bg-700'
+      className={`flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-2xl border-2 min-w-[84px] transition-[filter,box-shadow,background] duration-120 ease-ui ${
+        isActive ? '' : 'border-edge hover:border-edge-2 hover:brightness-110'
       }`}
       style={
         isActive
-          ? { background: `${accent}22`, borderColor: accent }
-          : undefined
+          ? {
+              background: `radial-gradient(80% 120% at 50% 0%, ${accent}30, transparent 65%), linear-gradient(180deg, rgba(26,22,49,0.6), rgba(10,8,22,0.6))`,
+              borderColor: accent,
+              boxShadow: `0 0 18px -4px ${accent}99, inset 0 1px 0 rgba(255,255,255,0.06)`,
+            }
+          : { background: 'rgba(10,8,22,0.4)' }
       }
     >
       <RhythmIcon
         beats={preset.rhythm}
         length={preset.length}
-        color={isActive ? accent : '#94a3b8'}
+        color={isActive ? accent : '#6F6691'}
       />
       <span
-        className="text-[9px] text-center leading-tight max-w-[78px] truncate"
-        style={{ color: isActive ? accent : '#94a3b8' }}
+        className="text-[9px] text-center leading-tight max-w-[78px] truncate font-mono uppercase tracking-wider"
+        style={{ color: isActive ? accent : '#6F6691' }}
       >
         {preset.name.replace('Bass — ', '')}
       </span>
@@ -119,7 +119,6 @@ export function RhythmPresetButton({
   );
 }
 
-/** Shallow-compare a live rhythm array against a preset, within the active length. */
 export function rhythmMatchesPreset(
   currentRhythm: readonly MotifRhythmBeat[],
   currentLength: number,
