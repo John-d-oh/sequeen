@@ -3,6 +3,7 @@ import {
   PadEngine,
   getActiveNotes,
   strumDelayMs,
+  applySpread,
   type VoicedNote,
   type PadSink,
 } from '../parts/pad';
@@ -193,5 +194,185 @@ describe('PadEngine — strum', () => {
     expect(delays[2]).toBeGreaterThan(delays[1]);
     // Each successive note is offset by the same strum interval.
     expect(delays[2] - delays[1]).toBeCloseTo(delays[1] - delays[0], 10);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applySpread — six voicing transformations
+// ---------------------------------------------------------------------------
+
+describe('applySpread — closed (mode 1)', () => {
+  it('returns the stacked voicing unchanged', () => {
+    expect(applySpread([60, 64, 67], 1)).toEqual([60, 64, 67]);
+  });
+
+  it('handles empty input', () => {
+    expect(applySpread([], 1)).toEqual([]);
+  });
+});
+
+describe('applySpread — open (mode 2)', () => {
+  it('moves the 3rd (index 1) up an octave on a triad', () => {
+    // [C4, E4, G4] → 3rd up an octave → [C4, G4, E5] = [60, 67, 76]
+    expect(applySpread([60, 64, 67], 2)).toEqual([60, 67, 76]);
+  });
+
+  it('on a 7th chord, only moves the 3rd (not the 7th)', () => {
+    // [C4, E4, G4, B4] → [C4, G4, B4, E5]
+    expect(applySpread([60, 64, 67, 71], 2)).toEqual([60, 67, 71, 76]);
+  });
+
+  it('falls back to closed for single-note voicings', () => {
+    expect(applySpread([60], 2)).toEqual([60]);
+  });
+});
+
+describe('applySpread — drop-2 (mode 3)', () => {
+  it('drops the 2nd-from-top down an octave on a triad', () => {
+    // [C4, E4, G4] → drop E4 (2nd from top) → [E3, C4, G4] = [52, 60, 67]
+    expect(applySpread([60, 64, 67], 3)).toEqual([52, 60, 67]);
+  });
+
+  it('classic Cmaj7 drop-2: G3 C4 E4 B4', () => {
+    // [C4, E4, G4, B4] → drop G4 → [G3, C4, E4, B4] = [55, 60, 64, 71]
+    expect(applySpread([60, 64, 67, 71], 3)).toEqual([55, 60, 64, 71]);
+  });
+
+  it('falls back for voicings under 3 notes', () => {
+    expect(applySpread([60, 64], 3)).toEqual([60, 64]);
+  });
+});
+
+describe('applySpread — drop-3 (mode 4)', () => {
+  it('drops the 3rd-from-top down an octave on a 7th chord', () => {
+    // [C4, E4, G4, B4] → drop E4 (3rd from top) → [E3, C4, G4, B4] = [52, 60, 67, 71]
+    expect(applySpread([60, 64, 67, 71], 4)).toEqual([52, 60, 67, 71]);
+  });
+
+  it('falls back to closed for voicings under 4 notes', () => {
+    expect(applySpread([60, 64, 67], 4)).toEqual([60, 64, 67]);
+  });
+});
+
+describe('applySpread — octave doubling (mode 5)', () => {
+  it('doubles every note up an octave', () => {
+    // [C4, E4, G4] → [C4, C5, E4, E5, G4, G5] sorted → [60, 64, 67, 72, 76, 79]
+    expect(applySpread([60, 64, 67], 5)).toEqual([60, 64, 67, 72, 76, 79]);
+  });
+
+  it('clamps notes that would exceed MIDI 127', () => {
+    // 120 + 12 = 132, out of range; only 120 should appear (no duplicate at 132)
+    const out = applySpread([120, 124], 5);
+    expect(out).toEqual([120, 124]);
+    expect(out.every((n) => n <= 127)).toBe(true);
+  });
+});
+
+describe('applySpread — wide (mode 6)', () => {
+  it('pushes each pair of notes up an additional octave', () => {
+    // [C4, E4, G4] (i=0,1,2) → +0,+0,+12 → [60, 64, 79]
+    expect(applySpread([60, 64, 67], 6)).toEqual([60, 64, 79]);
+  });
+
+  it('Cmaj7 wide: each pair gets a new octave shift', () => {
+    // [60, 64, 67, 71] (i=0,1,2,3) → +0,+0,+12,+12 → [60, 64, 79, 83]
+    expect(applySpread([60, 64, 67, 71], 6)).toEqual([60, 64, 79, 83]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getActiveNotes — spread parameter integration
+// ---------------------------------------------------------------------------
+
+describe('getActiveNotes with spread', () => {
+  it('spread=1 returns the stacked voicing (default behaviour)', () => {
+    expect(getActiveNotes('C', 'Major', 1, 'Triad', 60, 3)).toEqual([60, 64, 67]);
+    expect(getActiveNotes('C', 'Major', 1, 'Triad', 60, 3, 0, 'auto', 1)).toEqual([
+      60, 64, 67,
+    ]);
+  });
+
+  it('spread=2 (open) on C Major I returns [C4, G4, E5]', () => {
+    expect(getActiveNotes('C', 'Major', 1, 'Triad', 60, 3, 0, 'auto', 2)).toEqual([
+      60, 67, 76,
+    ]);
+  });
+
+  it('spread=3 (drop-2) on C Major I returns [E3, C4, G4]', () => {
+    expect(getActiveNotes('C', 'Major', 1, 'Triad', 60, 3, 0, 'auto', 3)).toEqual([
+      52, 60, 67,
+    ]);
+  });
+
+  it('spread=5 (octaves) doubles the voicing density', () => {
+    const closed = getActiveNotes('C', 'Major', 1, 'Triad', 60, 3, 0, 'auto', 1);
+    const octaves = getActiveNotes('C', 'Major', 1, 'Triad', 60, 3, 0, 'auto', 5);
+    expect(octaves.length).toBeGreaterThan(closed.length);
+    // Pitch classes are the same (only octaves added).
+    expect(new Set(octaves.map((n) => n % 12))).toEqual(
+      new Set(closed.map((n) => n % 12)),
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PadEngine — bar-mode trigger
+// ---------------------------------------------------------------------------
+
+describe('PadEngine — onBar / triggerMode', () => {
+  function setup(triggerMode: 'hold' | 'bar') {
+    const sink = {
+      voicings: [] as Array<{ voicing: VoicedNote[]; opts?: { restrike?: boolean } }>,
+      applyVoicing(voicing: VoicedNote[], opts?: { restrike?: boolean }) {
+        this.voicings.push({ voicing, opts });
+      },
+    };
+    const engine = new PadEngine({
+      sink,
+      getBpm: () => 120,
+      initialState: {
+        position: 60,
+        range: 3,
+        triggerMode,
+        isPlaying: false,
+      },
+    });
+    return { engine, sink };
+  }
+
+  it("hold mode: onBar is a no-op", () => {
+    const { engine, sink } = setup('hold');
+    engine.start();
+    sink.voicings.length = 0;
+    engine.onBar();
+    engine.onBar();
+    engine.onBar();
+    expect(sink.voicings).toHaveLength(0);
+  });
+
+  it('bar mode: onBar emits a restrike voicing every call', () => {
+    const { engine, sink } = setup('bar');
+    engine.start();
+    // start() emits the initial voicing without restrike.
+    expect(sink.voicings).toHaveLength(1);
+    expect(sink.voicings[0].opts?.restrike).toBeFalsy();
+
+    sink.voicings.length = 0;
+    engine.onBar();
+    expect(sink.voicings).toHaveLength(1);
+    expect(sink.voicings[0].opts?.restrike).toBe(true);
+    expect(sink.voicings[0].voicing.map((v) => v.note)).toEqual([60, 64, 67]);
+
+    engine.onBar();
+    expect(sink.voicings).toHaveLength(2);
+    expect(sink.voicings[1].opts?.restrike).toBe(true);
+  });
+
+  it('bar mode: onBar is silent while stopped', () => {
+    const { engine, sink } = setup('bar');
+    // never started
+    engine.onBar();
+    engine.onBar();
+    expect(sink.voicings).toHaveLength(0);
   });
 });

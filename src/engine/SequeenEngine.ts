@@ -131,10 +131,14 @@ export class SequeenEngine {
     this.noteTracker = new NoteTracker(this.midi);
 
     // Pad: emits a target voicing; NoteTracker diffs against the held set.
+    // `restrike: true` (used by bar-mode trigger) forces a release of any
+    // currently-held pad notes BEFORE the diff so the synth re-attacks
+    // even when the note set is identical to what's already sounding.
     const padSink: PadSink = {
-      applyVoicing: (voicing: VoicedNote[]) => {
+      applyVoicing: (voicing: VoicedNote[], opts) => {
         const cfg = this.partConfigs.pad;
         if (!cfg.portId) return;
+        if (opts?.restrike) this.noteTracker.releasePart('pad');
         this.noteTracker.updateNotes(
           'pad',
           cfg.portId,
@@ -227,6 +231,7 @@ export class SequeenEngine {
           // incremented at least once.
           if (this.barsPlayed > 0) {
             this.progressionEngine.onBarComplete();
+            this.padEngine.onBar();
             for (const cb of this.barListeners) cb();
           }
           this.barsPlayed++;

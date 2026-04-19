@@ -27,6 +27,18 @@ import { getChordNotes, type ChordQuality } from '../musicTheory';
 // State
 // ---------------------------------------------------------------------------
 
+/**
+ * `triggerMode` controls when the pad re-strikes its voicing:
+ *  - `'hold'` (default) — sustain. Notes ring until the chord changes (then
+ *    diff and re-voice) or the user changes a parameter that alters the
+ *    note set. Classic ambient / strings / pad sound.
+ *  - `'bar'` — release and re-strike the current voicing at every bar
+ *    boundary, even if the chord hasn't changed. Useful for rhythmic
+ *    percussive pads, plucked patches that need to re-attack each bar,
+ *    or anything where you want the chord to "breathe."
+ */
+export type PadTriggerMode = 'hold' | 'bar';
+
 export interface PadState {
   /**
    * Center MIDI note of the voicing. The Sequeen UI exposes this as a 0–100
@@ -36,7 +48,16 @@ export interface PadState {
   position: number;
   /** Number of stacked chord tones to include (1–22). */
   range: number;
-  /** Voicing openness (1–6). v1 only implements `1` = stacked thirds. */
+  /**
+   * Voicing openness (1–6).
+   *   1 = closed / stacked thirds
+   *   2 = open (3rd up an octave)
+   *   3 = drop-2 jazz
+   *   4 = drop-3
+   *   5 = octave doubling
+   *   6 = wide spread
+   * See `applySpread` for the math.
+   */
   spread: number;
   /** Strum index: 1 = simultaneous, 2–7 = successive delays between notes. */
   strum: number;
@@ -44,6 +65,8 @@ export interface PadState {
   velocity: number;
   /** 1-based MIDI channel. */
   midiChannel: number;
+  /** Re-strike behaviour — see `PadTriggerMode`. */
+  triggerMode: PadTriggerMode;
   /** When false, all parameter/chord changes are buffered and no audio emits. */
   isPlaying: boolean;
 }
@@ -55,6 +78,7 @@ export const DEFAULT_PAD_STATE: PadState = {
   strum: 1,
   velocity: 100,
   midiChannel: 1,
+  triggerMode: 'hold',
   isPlaying: false,
 };
 
@@ -103,6 +127,7 @@ export function getActiveNotes(
   range: number,
   alteration = 0,
   quality: ChordQuality = 'auto',
+  spread: number = 1,
 ): number[] {
   if (range <= 0) return [];
   const pool = getChordNotes(key, mode, degree, chordType, alteration, quality);
@@ -116,7 +141,109 @@ export function getActiveNotes(
   const maxStart = Math.max(0, pool.length - range);
   if (startIdx > maxStart) startIdx = maxStart;
 
-  return pool.slice(startIdx, startIdx + range);
+  const stacked = pool.slice(startIdx, startIdx + range);
+  return applySpread(stacked, spread);
+}
+
+// ---------------------------------------------------------------------------
+// Spread variations
+// ---------------------------------------------------------------------------
+
+/** Human-readable name for each spread mode (1-indexed lookup). */
+export const SPREAD_NAMES = [
+  'Closed',
+  'Open',
+  'Drop 2',
+  'Drop 3',
+  'Octaves',
+  'Wide',
+] as const;
+
+/** Three-letter labels for compact UI display. */
+export const SPREAD_SHORT = ['Cls', 'Opn', 'D2', 'D3', 'Oct', 'Wid'] as const;
+
+/**
+ * Take a "closed / stacked thirds" voicing and transform it into one of the
+ * six spread modes the NDLR offers. Each transformation has a distinct
+ * harmonic texture:
+ *
+ *   1 — Closed       Stacked, untouched. The natural ordering of `getChordNotes`.
+ *   2 — Open         Move the 3rd (2nd note from the bottom) up an octave.
+ *                    Adds air without losing density.
+ *   3 — Drop-2       Drop the 2nd-from-top down an octave. Classic jazz voicing
+ *                    that puts a colour-tone in the bass.
+ *   4 — Drop-3       Drop the 3rd-from-top down an octave. Wider variant of
+ *                    drop-2; only meaningful for 4+ note chords.
+ *   5 — Octaves      Double every note an octave above (clamped to 127).
+ *                    Thicker, more "fanfare" sound.
+ *   6 — Wide         Each pair of notes pushed up an additional octave —
+ *                    creates very open, ambient voicings with lots of
+ *                    register space between voices.
+ *
+ * Output is sorted ascending and clamped to MIDI 0–127.
+ *
+ * For modes that need a minimum note count (drop-2 needs ≥3, drop-3 needs
+ * ≥4) the input is returned unchanged if too small.
+ */
+export function applySpread(stacked: readonly number[], spread: number): number[] {
+  if (stacked.length === 0) return [];
+
+  const clampSort = (arr: number[]) =>
+    arr
+      .map((n) => Math.max(0, Math.min(127, n)))
+      .sort((a, b) => a - b);
+
+  switch (spread) {
+    case 1: // Closed
+      return [...stacked];
+
+    case 2: {
+      // Open — 3rd (index 1) up an octave.
+      if (stacked.length < 2) return [...stacked];
+      const out = [...stacked];
+      out[1] = out[1] + 12;
+      return clampSort(out);
+    }
+
+    case 3: {
+      // Drop-2 — 2nd-from-top down an octave.
+      if (stacked.length < 3) return [...stacked];
+      const out = [...stacked];
+      const dropIdx = out.length - 2;
+      out[dropIdx] = out[dropIdx] - 12;
+      return clampSort(out);
+    }
+
+    case 4: {
+      // Drop-3 — 3rd-from-top down an octave.
+      if (stacked.length < 4) return [...stacked];
+      const out = [...stacked];
+      const dropIdx = out.length - 3;
+      out[dropIdx] = out[dropIdx] - 12;
+      return clampSort(out);
+    }
+
+    case 5: {
+      // Octave doubling.
+      const out: number[] = [];
+      for (const n of stacked) {
+        out.push(n);
+        if (n + 12 <= 127) out.push(n + 12);
+      }
+      return clampSort(out);
+    }
+
+    case 6: {
+      // Wide — each pair of notes pushed up by an additional octave.
+      // [a, b, c, d] → [a, b, c+12, d+12]
+      // [a, b, c, d, e, f] → [a, b, c+12, d+12, e+24, f+24]
+      const out = stacked.map((n, i) => n + Math.floor(i / 2) * 12);
+      return clampSort(out);
+    }
+
+    default:
+      return [...stacked];
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -175,9 +302,14 @@ export interface VoicedNote {
  * The pad engine emits a complete target voicing on every change. The sink
  * is responsible for reconciling that voicing against what is currently
  * sounding (via NoteTracker in the real app, or a test spy in unit tests).
+ *
+ * `restrike: true` instructs the sink to release any currently-held notes
+ * BEFORE diffing — used by the bar-mode trigger so the pad re-attacks even
+ * when the note set is identical. Without this flag the NoteTracker diff
+ * would optimise the call to a no-op.
  */
 export interface PadSink {
-  applyVoicing(voicing: VoicedNote[]): void;
+  applyVoicing(voicing: VoicedNote[], opts?: { restrike?: boolean }): void;
 }
 
 // ---------------------------------------------------------------------------
@@ -243,7 +375,30 @@ export class PadEngine {
       this.state.range,
       this.ctx.alteration ?? 0,
       this.ctx.chordQuality ?? 'auto',
+      this.state.spread ?? 1,
     );
+  }
+
+  /**
+   * Bar-boundary hook (call once per bar from the master clock). In `'bar'`
+   * trigger mode the pad force-restrikes the current voicing; in `'hold'`
+   * mode it's a no-op. Re-strike emits the same notes via the sink with
+   * `restrike: true` so NoteTracker releases first and the synth gets a
+   * fresh attack.
+   */
+  onBar(): void {
+    if (!this.state.isPlaying) return;
+    if ((this.state.triggerMode ?? 'hold') !== 'bar') return;
+    const notes = this.getActiveNotes();
+    if (notes.length === 0) return;
+    const delay = strumDelayMs(this.state.strum, this.getBpm());
+    const voiced: VoicedNote[] = notes.map((note, i) => ({
+      note,
+      velocity: this.state.velocity,
+      delayMs: i * delay,
+    }));
+    this.currentVoicing = notes;
+    this.sink.applyVoicing(voiced, { restrike: true });
   }
 
   // -- transport ----------------------------------------------------------
