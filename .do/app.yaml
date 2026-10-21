@@ -1,0 +1,36 @@
+# DigitalOcean App Platform spec for Sequeen.
+#
+# Sequeen is a static single-page app: Vite builds it into dist/ and nothing runs
+# server-side. It is therefore deployed as a Static Site component, which sits in
+# App Platform's free tier (up to three static-only apps per account, 1 GiB of
+# outbound transfer each) and is served over HTTPS with a CDN. HTTPS matters: the
+# browser only exposes the Web MIDI API on secure origins (or localhost).
+#
+# To create the app the first time, in the DigitalOcean dashboard choose
+# Apps -> Create App -> GitHub -> John-d-oh/sequeen, and the dashboard picks this
+# spec up. With doctl installed it is:
+#
+#   doctl apps create --spec .do/app.yaml
+#
+# After that every push to main redeploys automatically (deploy_on_push).
+# Keep this app separate from the resurge-os app: a static component inside a
+# paid app gets no free bandwidth allowance, and the two projects are unrelated.
+
+name: sequeen
+region: lon
+
+static_sites:
+  - name: web
+    github:
+      repo: John-d-oh/sequeen
+      branch: main
+      deploy_on_push: true
+    source_dir: /
+    environment_slug: node-js
+    # The Node buildpack runs `npm ci` itself (package-lock.json is present) before
+    # this command. `npm run build` type-checks (tsc -b) and then runs vite build.
+    build_command: npm run build
+    output_dir: dist
+    # Single-page app: serve index.html for any path so a deep link or a hard
+    # refresh does not 404 at the CDN.
+    catchall_document: index.html
